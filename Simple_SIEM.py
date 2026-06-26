@@ -62,17 +62,23 @@ class SimpleSIEM:
         self.severity = {"CRITICAL" : 0, "HIGH" : 0, "MEDIUM" : 0, "LOW" : 0}
 
 
+    # MAIN ANALYZE LOG FUNC
     def analyze_logs(self):
         events = self.events
 
         self.get_multiple_denials(events)
-        self.get_ssh_attemps(events)
+        self.get_ssh(events)
         self.get_port_scan(events)
         self.get_SSH_brute(events)
 
         # Print out events and denied events
         #print("ALL events: ", events, "\n")
-        
+        self.print_dashboard()
+
+
+    
+    # PRINT DASHBOARD
+    def print_dashboard(self):
         print("=============================================")
         print("            SIMPLE SIEM DASHBOARD            ") 
         print("=============================================\n")
@@ -119,8 +125,8 @@ class SimpleSIEM:
 
 
     # SSH ATTEMPS CHECK
-    def get_ssh_attemps(self, events):
-        ssh_suspects = events[(events["Action"] == "DENY") & (events["Port"] == "22")]["Src_IP"].value_counts()
+    def get_ssh(self, events):
+        ssh_suspects = self.get_ssh_counts(events)
         for SrcIP, Count in ssh_suspects.items():
             if Count >= SSH_ACTIVITY_THRESHOLD:
                 self.add_alert("SSH Activity", SrcIP, Count)
@@ -136,11 +142,13 @@ class SimpleSIEM:
 
     # SSH BRUTE CHECK
     def get_SSH_brute(self, events):
-        ssh_suspects = events[(events["Action"] == "DENY") & (events["Port"] == "22")]["Src_IP"].value_counts()
+        ssh_suspects = self.get_ssh_counts(events)
         for SrcIP, Count in ssh_suspects.items():
             if Count >= SSH_BRUTE_THRESHOLD:
                 self.add_alert("Brute Force", SrcIP, Count)
-            
 
-ShtSIEM = SimpleSIEM()
-ShtSIEM.analyze_logs()
+
+
+    # HELPERS___________________________________
+    def get_ssh_counts(self, events):
+        return (events[(events["Action"] == "DENY") & (events["Port"] == "22")]["Src_IP"].value_counts())
