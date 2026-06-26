@@ -1,6 +1,6 @@
 import pandas as pd
 
-class ShitSIEM:
+class SimpleSIEM:
     def __init__(self):
         self. Firewall_Log = ["2026-08-01 12:00:01 ALLOW 192.168.1.5 8.8.8.8 TCP 443",
                              "2026-08-01 12:00:15 DENY 192.168.1.10 45.23.11.7 TCP 22",
@@ -42,5 +42,5 @@ class ShitSIEM:
 
             
 
-ShtSIEM = ShitSIEM()
+ShtSIEM = SimpleSIEM()
 ShtSIEM.Analyze_logs()
