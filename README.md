@@ -9,12 +9,18 @@ The SIEM class includes:
 # How it works:
 **CATEGORIZING**
 - The event map reads from the firewall log and splits it into separate events
-- During the process, if a log was marked "DENY", the denied IP would be stored in the denied IPs map
+- During the process, if a log were marked "DENY", the denied IP would be stored in the denied IPs map
 - The denied IPs map stores denied IPs and how many times an IP was denied access
 **ANALYZING**
-- When analyzing, the program starts by looking at the denied IPs list
-- If an IP was denied more than the preset limit (3 times), the SIEM would print out an alert and name the IP
-- Next, the program looks at the events map, and if an IP used port 22, the SIEM would print out an SSH activity alert and name out the IP
+- Detects and saves threats to a list for later display
+- Print alerts from the list
 
+**Update 0.1:**
+- Removed global threat lists
+- Added alert list (Alerts are now printed from the alert list)
+- Added helper function "add_alerts"
+- Added severity categorizing
+- Separated threat categorization into functions
+- Added (Port scan, SSH brute)
 
-Please leave some feedback if you don't mind, I'm trying to improve
+Please leave some feedback if you don't mind. I'm trying to improve
