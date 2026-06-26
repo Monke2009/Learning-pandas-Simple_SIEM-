@@ -1,3 +1,4 @@
+from Configs import *
 import pandas as pd
 
 class SimpleSIEM:
@@ -9,35 +10,76 @@ class SimpleSIEM:
         rows = [line.split() for line in self.Firewall_Log]
 
         # Get events
-        self.Events  = pd.DataFrame(
-            rows,
-            columns=['Date', 'Time', 'Action', 'Src_IP', 'Dst_IP', 'PROTOCOL', 'Port']
-        )
+        self.events  = pd.DataFrame(rows, columns=["Date", "Time", "Action", "Src_IP", "Dst_IP", "Protocol", "Port"])
+        self.alerts = []
 
+
+    def analyze_logs(self):
+        events = self.events
+
+        self.get_multiple_denials(events)
+        self.get_ssh_attemps(events)
+        self.get_port_scan(events)
+        self.get_SSH_brute(events)
+
+        # Print out events and denied events
+        print("ALL events: ", events, "\n")
         
-    def Analyze_logs(self):
-        events = self.Events
-
-        # Get a denied list and a list of possible SSH attemps
-        denied = events[events['Action'] == 'DENY']
-        ssh = events[(events['Action'] == 'DENY') & (events['Port'] == '22')]['Src_IP'].value_counts()
-
-        print("ALL EVENTS: ", events, '\n')
-        print("DENIEDs: ", denied, '\n')
-
-        # Gets denied IPs
-        denied_cnt_alerts = denied['Src_IP'].value_counts()
-        denied_cnt_alerts = denied_cnt_alerts[denied_cnt_alerts > 2]
-
         # Print out alerts
-        for SrcIP, Count in ssh.items():
-            print(f"ALERT: ({Count}) SSH activity; IP: {SrcIP}")
+        for alert in self.alerts:
+            print(f"[{alert['severity']}] "
+                  f"{alert['type']} | "
+                  f"{alert['ip']} | "
+                  f"{alert['count']}")
+        
+    
+    # ADD ALERT FUNC
+    def add_alert(self, alert_type, ip, Count):
+        if   Count >= 50: severity = "CRITICAL"
+        elif Count >= 20: severity = "HIGH"
+        elif Count >= 5 : severity = "MEDIUM"
+        else: severity = "LOW" 
 
+        self.alerts.append({
+            "type" : alert_type,
+            "severity" : severity,
+            "ip" : ip,
+            "count" : Count
+        })
+
+
+    # MULTIPLE DENIALS CHECK
+    def get_multiple_denials(self, events):
+        denied = events[events["Action"] == "DENY"]
+        denied_cnt_alerts = denied["Src_IP"].value_counts()
         for SrcIP, Count in denied_cnt_alerts.items():
-            print(f"ALERT: ({Count}) denied access; IP: {SrcIP}")
+            if Count >= DENIAL_THRESHOLD:
+                self.add_alert("Multiple Denials", SrcIP, Count)
 
 
+    # SSH ATTEMPS CHECK
+    def get_ssh_attemps(self, events):
+        ssh_suspects = events[(events["Action"] == "DENY") & (events["Port"] == "22")]["Src_IP"].value_counts()
+        for SrcIP, Count in ssh_suspects.items():
+            if Count >= SSH_ACTIVITY_THRESHOLD:
+                self.add_alert("SSH Activity", SrcIP, Count)
+
+
+    # PORTS SCAN CHECK
+    def get_port_scan(self, events):
+        ports_per_IP = events.groupby("Src_IP")["Port"].nunique()
+        for SrcIP, Count in ports_per_IP.items():
+            if Count >= PORT_SCAN_THRESHOLD:
+                self.add_alert("Port Scan", SrcIP, Count)
+
+
+    # SSH BRUTE CHECK
+    def get_SSH_brute(self, events):
+        ssh_suspects = events[(events["Action"] == "DENY") & (events["Port"] == "22")]["Src_IP"].value_counts()
+        for SrcIP, Count in ssh_suspects.items():
+            if Count >= SSH_BRUTE_THRESHOLD:
+                self.add_alert("Brute Force", SrcIP, Count)
             
 
 ShtSIEM = SimpleSIEM()
-ShtSIEM.Analyze_logs()
+ShtSIEM.analyze_logs()
