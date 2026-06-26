@@ -6,39 +6,36 @@ class SimpleSIEM:
                              "2026-08-01 12:00:15 DENY 192.168.1.10 45.23.11.7 TCP 22",
                              "2026-08-01 12:01:03 DENY 192.168.1.10 45.23.11.7 TCP 22",
                              "2026-08-01 12:01:12 DENY 192.168.1.10 45.23.11.7 TCP 22 "]
-        
-        self.Events  = {}
-        self.deniedIPs = {}
+        rows = [line.split() for line in self.Firewall_Log]
 
-        # Storing logs
-        for line in self.Firewall_Log:
-            parts = line.split()
-            event_key = f"Event_NO.{len(self.Events)+1}"
-            self.Events[event_key] = parts
+        # Get events
+        self.Events  = pd.DataFrame(
+            rows,
+            columns=['Date', 'Time', 'Action', 'Src_IP', 'Dst_IP', 'PROTOCOL', 'Port']
+        )
 
-            # If IP is denied, throw it into denied IP database
-            if parts[2] == "DENY":
-                ip = parts[3]
-                if ip in self.deniedIPs:
-                    self.deniedIPs[ip] += 1
-                else:
-                    self.deniedIPs[ip] = 1
         
     def Analyze_logs(self):
-        Display_Events = pd.DataFrame(self.Events).T
-        Display_Events.columns = ['Date', 'Time', 'Action', 'Src_IP', 'Dst_IP', 'Protocol', 'Port']
-        Display_Denied = pd.DataFrame(list(self.deniedIPs.items()), columns=['IP', 'Deny_Count'])
+        events = self.Events
 
-        print(Display_Events,'\n')
-        print(Display_Denied,'\n')
+        # Get a denied list and a list of possible SSH attemps
+        denied = events[events['Action'] == 'DENY']
+        ssh = events[(events['Action'] == 'DENY') & (events['Port'] == '22')]['Src_IP'].value_counts()
 
+        print("ALL EVENTS: ", events, '\n')
+        print("DENIEDs: ", denied, '\n')
 
-        for ip in self.deniedIPs: # See if denied attempts exceeds 3
-            if self.deniedIPs[ip] > 2: print(f"ALERT: High number of denied connection; IP: {ip}")
+        # Gets denied IPs
+        denied_cnt_alerts = denied['Src_IP'].value_counts()
+        denied_cnt_alerts = denied_cnt_alerts[denied_cnt_alerts > 2]
 
-        for event_key, event_parts in self.Events.items(): # See if SSH activity is detected (aka port 22)
-            ip = event_parts[3]
-            if event_parts[6] == "22":  print(f"ALERT: SSH Activity detected; IP: {ip}")
+        # Print out alerts
+        for SrcIP, Count in ssh.items():
+            print(f"ALERT: ({Count}) SSH activity; IP: {SrcIP}")
+
+        for SrcIP, Count in denied_cnt_alerts.items():
+            print(f"ALERT: ({Count}) denied access; IP: {SrcIP}")
+
 
             
 
